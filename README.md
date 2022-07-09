@@ -1,3 +1,28 @@
+# How to add, compile, deploy and verify RamzRial contract
+
+first add @openzeppelin/contracts by:
+
+npm install --save-dev @openzeppelin/contracts
+
+
+then compile the contracts by:
+
+npx hardhat compile
+
+
+now you can deploy it via:
+
+npx hardhat --network ropsten run scripts/deployRamzRial.ts 
+
+
+and then verify it by:
+
+npx hardhat verify --network ropsten 0xD22bA21C7B16F9dD10ef2f4eE2b3B6696e814943 "RamzRialToken" "RRT" "0"
+Nothing to compile
+
+(put your contract address)
+
+
 # Advanced Sample Hardhat Project
 
 This project demonstrates an advanced Hardhat use case, integrating other tools commonly used alongside Hardhat in the ecosystem.
