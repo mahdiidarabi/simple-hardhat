@@ -8,15 +8,17 @@ contract Makan {
     address public owner;
     IERC20 public ramzRial;
 
+    uint public rentingDuration = 2 minutes;
+
     modifier onlyOwner() {
-        require(msg.sender == owner, "Caller is not the owner");
+        require(msg.sender == owner, "Caller is not owner");
         _;
     }
 
     struct Room {
         uint id;
-        uint agreementId;
-        string telegramId;
+        uint agreementID;
+        string telegramID;
         bool isVacant;
         address landLord;
         address renter;
@@ -27,8 +29,8 @@ contract Makan {
 
     struct Agreement {
         uint id;
-        uint roomId;
-        string telegramId;
+        uint roomID;
+        string telegramID;
         bool isActive;
         address landLord;
         address renter;
@@ -38,27 +40,25 @@ contract Makan {
         bool isExisted;
     }
 
-    uint currentRoomId = 0; 
+    uint currentRoomID = 0;
     mapping(uint => Room) public roomsByID;
 
-    uint currentAgreementId = 0;
+    uint currentAgreementID = 0;
     mapping(uint => Agreement) public agreementsByID;
 
-
     constructor(
-        address _ramzRail
+        address _ramzRial
     ) {
-        ramzRial = IERC20(_ramzRail);
+        ramzRial = IERC20(_ramzRial);
     }
-
 
     function addRoom(
         string memory _telegramID,
         uint _rentPerDay,
         uint _collateral
     ) public {
-        roomsByID[currentRoomId] = Room(
-            currentRoomId,
+        roomsByID[currentRoomID] = Room(
+            currentRoomID,
             0,
             _telegramID,
             true,
@@ -69,31 +69,28 @@ contract Makan {
             true
         );
 
-        currentRoomId = currentRoomId + 1;
+        currentRoomID++;
     }
 
-
     function rentRoom(
-        uint _roomId
+        uint _roomID
     ) public {
-        require(roomsByID[_roomId].isExisted == true, "No makan no fun :)");
+        require(roomsByID[_roomID].isExisted == true, "No makan, No fun!");
+        require(roomsByID[_roomID].isVacant == true, "Room is not vacant");
 
-        require(roomsByID[_roomId].isVacant == true, "Pore :(");
+        uint totalFee = roomsByID[_roomID].rentPerDay + roomsByID[_roomID].collateral;
 
-        uint totalFee = roomsByID[_roomId].rentPerDay + roomsByID[_roomId].collateral;
+        require(ramzRial.balanceOf(msg.sender) >= totalFee, "No money, No fun!");
+        require(ramzRial.allowance(msg.sender, address(this)) >= totalFee, "No approve!");
 
-        require(ramzRial.balanceOf(msg.sender) >= totalFee, "Pool nadari :P");
+        Room memory theRoom = roomsByID[_roomID];
 
-        require(ramzRial.allowance(msg.sender, address(this)) >= totalFee, "Ejaze bede lashi");
+        ramzRial.transferFrom(msg.sender, address(this), totalFee);
 
-        Room memory theRoom = roomsByID[_roomId];
-
-        ramzRial.transferFrom(msg.sender, theRoom.landLord, totalFee);
-
-        agreementsByID[currentAgreementId] = Agreement(
-            currentAgreementId,
-            _roomId,
-            theRoom.telegramId,
+        agreementsByID[currentAgreementID] = Agreement(
+            currentAgreementID,
+            _roomID,
+            theRoom.telegramID,
             true,
             theRoom.landLord,
             msg.sender,
@@ -103,12 +100,33 @@ contract Makan {
             true
         );
 
-        roomsByID[_roomId].isVacant = false;
-        roomsByID[_roomId].agreementId = currentAgreementId; 
+        roomsByID[_roomID].isVacant = false;
+        roomsByID[_roomID].agreementID = currentAgreementID;
+        roomsByID[_roomID].renter = msg.sender;
 
-        currentAgreementId ++;
-
+        currentAgreementID++;
     }
 
-    // agreementsByID[currentAgreementId].startingTime <= block.timestamp - 5 hours;
+    function emptyRoom(
+        uint _agreementID
+    ) public {
+        Agreement memory theAgreement = agreementsByID[_agreementID];
+
+        require(theAgreement.isExisted == true, "There is no such agreement");
+        require(theAgreement.isActive == true, "This Agreemtn has expired already.");
+        require(block.timestamp >= theAgreement.startingTime + rentingDuration, "This agreement is not expired yet");
+
+        Room memory theRoom = roomsByID[theAgreement.roomID];
+
+        ramzRial.transfer(theAgreement.landLord, theAgreement.rentPerDay);
+        ramzRial.transfer(theAgreement.renter, theAgreement.collateral);
+
+        theRoom.isVacant = true;
+        theRoom.renter = address(0);
+        theRoom.agreementID = 0;
+
+        roomsByID[theAgreement.roomID] = theRoom;
+
+        agreementsByID[_agreementID].isActive = false;
+    }
 }
