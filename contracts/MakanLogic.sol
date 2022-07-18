@@ -2,55 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./MakanStorageStructure.sol";
 
-contract Makan {
-    address public owner;
-    IERC20 public ramzRial;
-
-    uint public rentingDuration = 2 minutes;
-
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Caller is not owner");
-        _;
-    }
-
-    struct Room {
-        uint id;
-        uint agreementID;
-        string telegramID;
-        bool isVacant;
-        address landLord;
-        address renter;
-        uint rentPerDay;
-        uint collateral;
-        bool isExisted;
-    }
-
-    struct Agreement {
-        uint id;
-        uint roomID;
-        string telegramID;
-        bool isActive;
-        address landLord;
-        address renter;
-        uint rentPerDay;
-        uint collateral;
-        uint startingTime;
-        bool isExisted;
-    }
-
-    uint currentRoomID = 0;
-    mapping(uint => Room) public roomsByID;
-
-    uint currentAgreementID = 0;
-    mapping(uint => Agreement) public agreementsByID;
-
-    constructor(
-        address _ramzRial
-    ) {
-        ramzRial = IERC20(_ramzRial);
-    }
+contract MakanLogic is MakanStorageStructure {
 
     function addRoom(
         string memory _telegramID,
@@ -118,7 +72,10 @@ contract Makan {
 
         Room memory theRoom = roomsByID[theAgreement.roomID];
 
-        ramzRial.transfer(theAgreement.landLord, theAgreement.rentPerDay);
+        uint ownerFee = (theAgreement.rentPerDay * feePercentage) / 100;
+
+        ramzRial.transfer(owner, ownerFee);
+        ramzRial.transfer(theAgreement.landLord, theAgreement.rentPerDay - ownerFee);
         ramzRial.transfer(theAgreement.renter, theAgreement.collateral);
 
         theRoom.isVacant = true;
